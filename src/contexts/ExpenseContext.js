@@ -506,9 +506,13 @@ export const ExpenseProvider = ({ children }) => {
     const balances = {};
 
     // Initialize balances for all users
-    [currentUser.id, ...friends.map((f) => f.id)].forEach((userId) => {
+    const allUserIds = [currentUser?.id, ...friends.map((f) => f.id)].filter(
+      Boolean
+    ); // Filter out any undefined IDs
+
+    allUserIds.forEach((userId) => {
       balances[userId] = {};
-      [currentUser.id, ...friends.map((f) => f.id)].forEach((otherId) => {
+      allUserIds.forEach((otherId) => {
         if (userId !== otherId) {
           balances[userId][otherId] = 0;
         }
@@ -517,10 +521,31 @@ export const ExpenseProvider = ({ children }) => {
 
     // Calculate from expenses
     expenses.forEach((expense) => {
+      if (!expense.paidBy || !expense.participants) {
+        // Skip expenses with missing data
+        return;
+      }
+
       if (expense.isPayment) {
         // Handle payments differently
         const { paidBy, participants } = expense;
-        const receiver = participants.find((p) => p.id !== paidBy).id;
+
+        // Find the receiver (the participant who is not the payer)
+        const receiverParticipant = participants.find((p) => p.id !== paidBy);
+        if (!receiverParticipant) return;
+
+        const receiver = receiverParticipant.id;
+
+        // Make sure both users exist in the balances object
+        if (
+          !balances[paidBy] ||
+          !balances[paidBy][receiver] ||
+          !balances[receiver] ||
+          !balances[receiver][paidBy]
+        ) {
+          return;
+        }
+
         balances[paidBy][receiver] += parseFloat(expense.amount);
         balances[receiver][paidBy] -= parseFloat(expense.amount);
       } else {
@@ -528,16 +553,25 @@ export const ExpenseProvider = ({ children }) => {
         const { paidBy, participants, amount } = expense;
 
         participants.forEach((participant) => {
-          if (participant.id !== paidBy) {
-            // This person owes the payer
-            const owed =
-              expense.splitType === "equal"
-                ? parseFloat(amount) / participants.length
-                : parseFloat(participant.amount);
-
-            balances[participant.id][paidBy] += owed;
-            balances[paidBy][participant.id] -= owed;
+          // Skip if participant is the payer or if IDs are missing/invalid
+          if (
+            participant.id === paidBy ||
+            !balances[participant.id] ||
+            !balances[participant.id][paidBy] ||
+            !balances[paidBy] ||
+            !balances[paidBy][participant.id]
+          ) {
+            return;
           }
+
+          // This person owes the payer
+          const owed =
+            expense.splitType === "equal"
+              ? parseFloat(amount) / participants.length
+              : parseFloat(participant.amount || 0);
+
+          balances[participant.id][paidBy] += owed;
+          balances[paidBy][participant.id] -= owed;
         });
       }
     });
@@ -547,15 +581,15 @@ export const ExpenseProvider = ({ children }) => {
 
     Object.keys(balances).forEach((userId) => {
       Object.keys(balances[userId]).forEach((otherId) => {
-        if (parseInt(userId) < parseInt(otherId)) {
+        if (userId < otherId) {
+          // Use string comparison to avoid numeric issues
           const netAmount =
             balances[userId][otherId] + balances[otherId][userId];
 
           if (Math.abs(netAmount) > 0.01) {
-            const fromUser =
-              netAmount > 0 ? parseInt(userId) : parseInt(otherId);
+            const fromUser = netAmount > 0 ? userId : otherId;
 
-            const toUser = netAmount > 0 ? parseInt(otherId) : parseInt(userId);
+            const toUser = netAmount > 0 ? otherId : userId;
 
             simplifiedBalances.push({
               from: fromUser,
