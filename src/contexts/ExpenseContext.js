@@ -34,6 +34,7 @@ export const ExpenseProvider = ({ children }) => {
         }
 
         if (storedFriends) {
+          // console.log("Loading friends from localStorage:", storedFriends);
           setFriends(JSON.parse(storedFriends));
         }
 
@@ -53,6 +54,9 @@ export const ExpenseProvider = ({ children }) => {
       localStorage.setItem("expenses", JSON.stringify(expenses));
       localStorage.setItem("groups", JSON.stringify(groups));
       localStorage.setItem("friends", JSON.stringify(friends));
+
+      // Verify the data was saved correctly
+      const savedFriends = localStorage.getItem("friends");
     }
   }, [expenses, groups, friends, loading]);
 
@@ -111,12 +115,17 @@ export const ExpenseProvider = ({ children }) => {
   // Add a new friend
   const addFriend = (friendData) => {
     const newFriend = {
-      id: uuidv4(),
+      id: uuidv4(), // Make sure you're generating a unique ID
       ...friendData,
       timestamp: new Date().toISOString(),
     };
 
-    setFriends((prev) => [...prev, newFriend]);
+    setFriends((prev) => {
+      const updatedFriends = [...(prev || []), newFriend];
+
+      return updatedFriends;
+    });
+
     return newFriend;
   };
 

@@ -2,22 +2,22 @@ import React from "react";
 import Head from "next/head";
 import { Container, Row, Col } from "react-bootstrap";
 import { useRouter } from "next/router";
-import ExpenseDetail from "../../src/components/expenses/ExpenseDetails";
+import FriendDetail from "../../src/components/friends/FriendDetail";
 
-const ExpenseDetailPage = () => {
+const FriendDetailPage = () => {
   const router = useRouter();
   const { id } = router.query;
 
   return (
     <>
       <Head>
-        <title>Expense Details | Splitwise Clone</title>
+        <title>Friend Details | Splitwise Clone</title>
       </Head>
 
       <Container className="py-4">
         <Row>
           <Col lg={8} className="mx-auto">
-            <ExpenseDetail expenseId={id} />
+            <FriendDetail friendId={id} />
           </Col>
         </Row>
       </Container>
@@ -25,4 +25,4 @@ const ExpenseDetailPage = () => {
   );
 };
 
-export default ExpenseDetailPage;
+export default FriendDetailPage;
