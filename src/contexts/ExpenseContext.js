@@ -190,13 +190,22 @@ export const ExpenseProvider = ({ children }) => {
   };
 
   // Calculate balances between users
+  // console.log("Full expenses data:", expenses);
+  // Calculate balances between users
   const calculateBalances = () => {
+    console.log("Starting balance calculation with:", {
+      expenses: expenses.length,
+      currentUser: currentUser?.id,
+      friends: friends.length,
+    });
+
     const balances = {};
 
     // Initialize balances for all users
     const allUserIds = [currentUser?.id, ...friends.map((f) => f.id)].filter(
       Boolean
-    ); // Filter out any undefined IDs
+    );
+    console.log("All user IDs:", allUserIds);
 
     allUserIds.forEach((userId) => {
       balances[userId] = {};
@@ -207,59 +216,86 @@ export const ExpenseProvider = ({ children }) => {
       });
     });
 
+    console.log("Initialized balances:", balances);
+
     // Calculate from expenses
-    expenses.forEach((expense) => {
-      if (!expense.paidBy || !expense.participants) {
-        // Skip expenses with missing data
+    expenses.forEach((expense, index) => {
+      console.log(
+        `Expense ${index}: ${expense.description}, Paid by: ${expense.paidBy}`
+      );
+
+      // Skip if missing critical data
+      if (!expense.paidBy || !expense.participants || !expense.amount) {
+        console.log("Skipping expense - missing critical data");
         return;
       }
 
-      if (expense.isPayment) {
-        // Handle payments differently
-        const { paidBy, participants } = expense;
+      // Skip self-expenses (expenses with only the payer as participant)
+      if (
+        expense.participants.length === 1 &&
+        expense.participants[0].id === expense.paidBy
+      ) {
+        console.log("Self-expense - no balance to calculate");
+        return;
+      }
 
-        // Find the receiver (the participant who is not the payer)
-        const receiverParticipant = participants.find((p) => p.id !== paidBy);
-        if (!receiverParticipant) return;
+      // For expenses with 0 participant amounts, calculate equal split
+      const hasValidAmounts = expense.participants.some((p) => p.amount > 0);
+      if (!hasValidAmounts && expense.participants.length > 1) {
+        console.log("No valid participant amounts - calculating equal split");
+        const shareAmount =
+          parseFloat(expense.amount) / expense.participants.length;
 
-        const receiver = receiverParticipant.id;
+        expense.participants.forEach((participant) => {
+          // Skip if participant is the payer
+          if (participant.id === expense.paidBy) return;
 
-        // Make sure both users exist in the balances object
-        if (
-          !balances[paidBy] ||
-          !balances[paidBy][receiver] ||
-          !balances[receiver] ||
-          !balances[receiver][paidBy]
-        ) {
-          return;
-        }
-
-        balances[paidBy][receiver] += parseFloat(expense.amount);
-        balances[receiver][paidBy] -= parseFloat(expense.amount);
-      } else {
-        // Regular expense
-        const { paidBy, participants, amount } = expense;
-
-        participants.forEach((participant) => {
-          // Skip if participant is the payer or if IDs are missing/invalid
+          // Skip if IDs are missing from balances
           if (
-            participant.id === paidBy ||
             !balances[participant.id] ||
-            !balances[participant.id][paidBy] ||
-            !balances[paidBy] ||
-            !balances[paidBy][participant.id]
+            !balances[participant.id][expense.paidBy] ||
+            !balances[expense.paidBy] ||
+            !balances[expense.paidBy][participant.id]
           ) {
+            console.log(
+              `Skipping participant ${participant.id} - missing from balances`
+            );
             return;
           }
 
           // This person owes the payer
-          const owed =
-            expense.splitType === "equal"
-              ? parseFloat(amount) / participants.length
-              : parseFloat(participant.amount || 0);
+          console.log(
+            `${participant.id} owes ${expense.paidBy} ${shareAmount}`
+          );
+          balances[participant.id][expense.paidBy] += shareAmount;
+          balances[expense.paidBy][participant.id] -= shareAmount;
+        });
+      } else {
+        // Regular expense with valid participant amounts
+        expense.participants.forEach((participant) => {
+          // Skip if participant is the payer
+          if (participant.id === expense.paidBy) return;
 
-          balances[participant.id][paidBy] += owed;
-          balances[paidBy][participant.id] -= owed;
+          // Skip if IDs are missing from balances
+          if (
+            !balances[participant.id] ||
+            !balances[participant.id][expense.paidBy] ||
+            !balances[expense.paidBy] ||
+            !balances[expense.paidBy][participant.id]
+          ) {
+            console.log(
+              `Skipping participant ${participant.id} - missing from balances`
+            );
+            return;
+          }
+
+          // This person owes the payer
+          const owed = parseFloat(participant.amount || 0);
+          if (owed <= 0) return; // Skip if amount is 0 or negative
+
+          console.log(`${participant.id} owes ${expense.paidBy} ${owed}`);
+          balances[participant.id][expense.paidBy] += owed;
+          balances[expense.paidBy][participant.id] -= owed;
         });
       }
     });
@@ -270,13 +306,11 @@ export const ExpenseProvider = ({ children }) => {
     Object.keys(balances).forEach((userId) => {
       Object.keys(balances[userId]).forEach((otherId) => {
         if (userId < otherId) {
-          // Use string comparison to avoid numeric issues
           const netAmount =
             balances[userId][otherId] + balances[otherId][userId];
 
           if (Math.abs(netAmount) > 0.01) {
             const fromUser = netAmount > 0 ? userId : otherId;
-
             const toUser = netAmount > 0 ? otherId : userId;
 
             simplifiedBalances.push({
@@ -289,6 +323,7 @@ export const ExpenseProvider = ({ children }) => {
       });
     });
 
+    console.log("Final simplified balances:", simplifiedBalances);
     return simplifiedBalances;
   };
 
@@ -298,7 +333,7 @@ export const ExpenseProvider = ({ children }) => {
     const balances = calculateBalances();
 
     balances.forEach((balance) => {
-      if (balance.to === currentUser.id) {
+      if (balance.to === currentUser?.id) {
         total += parseFloat(balance.amount);
       }
     });
@@ -312,7 +347,7 @@ export const ExpenseProvider = ({ children }) => {
     const balances = calculateBalances();
 
     balances.forEach((balance) => {
-      if (balance.from === currentUser.id) {
+      if (balance.from === currentUser?.id) {
         total += parseFloat(balance.amount);
       }
     });
