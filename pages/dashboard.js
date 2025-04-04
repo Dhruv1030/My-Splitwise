@@ -12,6 +12,7 @@ import {
 } from "react-bootstrap";
 import { AuthContext } from "../src/contexts/AuthContext";
 import { ExpenseContext } from "../src/contexts/ExpenseContext";
+import ExpenseChart from "../src/components/analytics/ExpenseChart";
 
 const Dashboard = () => {
   const router = useRouter();
@@ -40,8 +41,6 @@ const Dashboard = () => {
   // Update data when expenses change
   useEffect(() => {
     if (!loading) {
-      console.log("Dashboard - Expenses updated:", expenses.length);
-
       // Get recent expenses (sorted by date)
       const sorted = [...expenses]
         .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -56,12 +55,6 @@ const Dashboard = () => {
       const netBalance = getNetBalance();
       const totalOwed = getTotalOwedToUser();
       const totalOwes = getTotalUserOwes();
-
-      console.log("Dashboard - Calculated totals:", {
-        netBalance,
-        totalOwed,
-        totalOwes,
-      });
 
       setTotals({
         netBalance,
@@ -148,6 +141,22 @@ const Dashboard = () => {
             </Row>
           </Col>
         </Row>
+
+        {expenses.length > 0 && (
+          <Row className="mb-4">
+            <Col>
+              <ExpenseChart />
+              <div className="text-center">
+                <Button
+                  variant="link"
+                  onClick={() => router.push("/analytics")}
+                >
+                  View detailed analytics
+                </Button>
+              </div>
+            </Col>
+          </Row>
+        )}
 
         <Row>
           <Col lg={8}>
