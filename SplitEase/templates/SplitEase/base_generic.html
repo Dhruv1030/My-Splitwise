@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}SplitEase{% endblock %}</title>
+</head>
+<body>
+    <header>
+        <h1>SplitEase</h1>
+    </header>
+    <main>
+        {% if messages %}
+          <ul class="messages" style="list-style-type: none; padding: 0;">
+            {% for message in messages %}
+              <li{% if message.tags %} class="{{ message.tags }}" style="margin: 10px 0; padding: 10px; border-radius: 5px; color: white; {% if message.tags == 'success' %}background-color: green;{% elif message.tags == 'error' %}background-color: red;{% elif message.tags == 'warning' %}background-color: orange;{% else %}background-color: gray;{% endif %}"{% endif %}>
+                {{ message }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% block content %}
+        {% endblock %}
+    </main>
+    <footer>
+        <p>&copy; 2023 SplitEase</p>
+    </footer>
+</body>
+</html>

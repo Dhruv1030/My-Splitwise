@@ -1,0 +1,17 @@
+{% extends "SplitEase/base_generic.html" %}
+
+{% block title %}My Groups - SplitEase{% endblock %}
+
+{% block content %}
+  <h2>My Groups</h2>
+  {% if groups %}
+    <ul>
+      {% for group in groups %}
+        <li><a href="{% url 'groups:group_detail' group.id %}">{{ group.name }}</a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>You are not a member of any groups yet.</p>
+  {% endif %}
+  <p><a href="{% url 'groups:create_group' %}">Create New Group</a></p>
+{% endblock %}
