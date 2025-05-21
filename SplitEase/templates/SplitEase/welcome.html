@@ -1,0 +1,14 @@
+{% extends "SplitEase/base_generic.html" %}
+
+{% block title %}Welcome - SplitEase{% endblock %}
+
+{% block content %}
+  <h2>Welcome to SplitEase!</h2>
+  <p>Your go-to solution for managing shared expenses.</p>
+  {% if user.is_authenticated %}
+    <p>Hello, {{ user.username }}!</p>
+    <p><a href="{% url 'groups:group_list' %}">My Groups</a> | <a href="{% url 'groups:create_group' %}">Create New Group</a> | <a href="{% url 'logout' %}">Logout</a></p>
+  {% else %}
+    <p><a href="{% url 'login' %}">Login</a> | <a href="{% url 'register' %}">Register</a></p>
+  {% endif %}
+{% endblock %}

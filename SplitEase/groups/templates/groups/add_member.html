@@ -1,0 +1,15 @@
+{% extends "SplitEase/base_generic.html" %}
+
+{% block title %}Add Member to {{ group.name }} - SplitEase{% endblock %}
+
+{% block content %}
+  <h2>Add Member to {{ group.name }}</h2>
+  
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Add Member</button>
+  </form>
+  
+  <p style="margin-top: 20px;"><a href="{% url 'groups:group_detail' group.id %}">Back to Group Details</a></p>
+{% endblock %}

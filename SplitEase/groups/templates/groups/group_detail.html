@@ -1,0 +1,41 @@
+{% extends "SplitEase/base_generic.html" %}
+
+{% block title %}{{ group.name }} - Group Details - SplitEase{% endblock %}
+
+{% block content %}
+  <h2>{{ group.name }}</h2>
+  <p>Created by: {{ group.created_by.username }} on {{ group.created_at|date:"Y-m-d H:i" }}</p>
+  
+  <h3>Members:</h3>
+  {% if members %}
+    <ul>
+      {% for member in members %}
+        <li>{{ member.username }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>This group has no members.</p>
+  {% endif %}
+  
+  {% if user == group.created_by %}
+    <p><a href="{% url 'groups:add_member_to_group' group.id %}">Add Member</a></p>
+  {% endif %}
+  
+  <p><a href="{% url 'expenses:add_expense' group.id %}">Add Expense to this Group</a></p>
+
+  <hr>
+  <h3>Expenses:</h3>
+  {% if expenses %}
+    <ul>
+      {% for expense in expenses %}
+        <li>
+          {{ expense.description }} - ${{ expense.amount }} (Paid by: {{ expense.paid_by.username }} on {{ expense.date|date:"Y-m-d" }})
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No expenses recorded for this group yet.</p>
+  {% endif %}
+
+  <p style="margin-top: 20px;"><a href="{% url 'groups:group_list' %}">Back to My Groups</a></p>
+{% endblock %}
