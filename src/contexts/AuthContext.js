@@ -1,93 +1,135 @@
-import React, { createContext, useState, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { createContext, useState, useEffect, useContext } from "react";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  onAuthStateChanged,
+} from "firebase/auth";
+import { auth, createUserProfile } from "../services/firebase";
 
 export const AuthContext = createContext();
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Load user from localStorage on component mount
-  useEffect(() => {
+  // Sign up function
+  const signup = async (email, password, userData) => {
     try {
-      const savedUser = localStorage.getItem("currentUser");
-      if (savedUser) {
-        setCurrentUser(JSON.parse(savedUser));
-      }
-      setLoading(false);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
-  }, []);
-
-  // Save user to localStorage whenever it changes
-  useEffect(() => {
-    if (!loading && currentUser) {
-      localStorage.setItem("currentUser", JSON.stringify(currentUser));
-    }
-  }, [currentUser, loading]);
-
-  // Register a new user
-  const register = (userData) => {
-    try {
-      const newUser = {
-        id: uuidv4(),
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      await createUserProfile(userCredential.user.uid, {
+        email,
         ...userData,
         createdAt: new Date().toISOString(),
-      };
-
-      setCurrentUser(newUser);
-      localStorage.setItem("currentUser", JSON.stringify(newUser));
-      return newUser;
-    } catch (err) {
-      setError(err.message);
-      throw err;
+      });
+      return userCredential.user;
+    } catch (error) {
+      setError(getAuthErrorMessage(error.code));
+      throw error;
     }
   };
 
-  // Login an existing user
-  const login = (email, password) => {
+  // Sign in function
+  const login = async (email, password) => {
     try {
-      // In a real app, this would validate against a database
-      // For demo purposes, we'll just create a mock user
-      const mockUser = {
-        id: "1",
-        name: "Demo User",
-        email: email,
-        createdAt: new Date().toISOString(),
-      };
-
-      setCurrentUser(mockUser);
-      localStorage.setItem("currentUser", JSON.stringify(mockUser));
-      return mockUser;
-    } catch (err) {
-      setError(err.message);
-      throw err;
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      return userCredential.user;
+    } catch (error) {
+      setError(getAuthErrorMessage(error.code));
+      throw error;
     }
   };
 
-  // Logout the current user
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem("currentUser");
+  // Logout function
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setCurrentUser(null);
+    } catch (error) {
+      setError(getAuthErrorMessage(error.code));
+      throw error;
+    }
+  };
+
+  // Password reset function
+  const resetPassword = async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error) {
+      setError(getAuthErrorMessage(error.code));
+      throw error;
+    }
+  };
+
+  // Clear error helper
+  const clearError = () => setError(null);
+
+  // Auth state observer
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
+        setCurrentUser(user);
+        setLoading(false);
+        setError(null);
+      },
+      (error) => {
+        setError(getAuthErrorMessage(error.code));
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const value = {
+    currentUser,
+    loading,
+    error,
+    signup,
+    login,
+    logout,
+    resetPassword,
+    clearError,
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        loading,
-        error,
-        register,
-        login,
-        logout,
-      }}
-    >
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
-export default AuthContext;
+// Helper function for error messages
+const getAuthErrorMessage = (code) => {
+  const messages = {
+    "auth/user-not-found": "No account exists with this email",
+    "auth/wrong-password": "Invalid password",
+    "auth/email-already-in-use": "Email already registered",
+    "auth/weak-password": "Password should be at least 6 characters",
+    "auth/invalid-email": "Invalid email format",
+    "auth/network-request-failed":
+      "Network error - please check your connection",
+    "auth/too-many-requests": "Too many attempts - please try again later",
+    "auth/operation-not-allowed": "Email/password sign-in is not enabled",
+  };
+  return messages[code] || "An unexpected error occurred";
+};

@@ -13,8 +13,7 @@ import {
 } from "react-bootstrap";
 import styled from "styled-components";
 import { BiDollar, BiEnvelope, BiLock } from "react-icons/bi";
-import { FiDollarSign, FiMail, FiLock, FiAlertCircle } from "react-icons/fi";
-import AuthContext from "../src/contexts/AuthContext"; // This might be the issue
+import AuthContext from "../src/contexts/AuthContext";
 
 const LoginContainer = styled.div`
   min-height: 100vh;
@@ -142,10 +141,10 @@ export default function Login() {
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [alert, setAlert] = useState({ type: "", message: "" });
 
   const router = useRouter();
+  const { login } = useContext(AuthContext); // Use Firebase login from AuthContext
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -153,8 +152,6 @@ export default function Login() {
       ...form,
       [name]: value,
     });
-
-    // Clear error when user types
     if (errors[name]) {
       setErrors({
         ...errors,
@@ -189,21 +186,10 @@ export default function Login() {
     setAlert({ type: "", message: "" });
 
     try {
-      // Mock authentication for now
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Check if it's a test account
-      if (form.email === "test@example.com" && form.password === "password") {
-        setIsSubmitted(true);
-        setAlert({ type: "success", message: "Login successful!" });
-
-        // Redirect to dashboard
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 1500);
-      } else {
-        setAlert({ type: "danger", message: "Invalid email or password" });
-      }
+      // Use the Firebase login function from AuthContext
+      await login(form.email, form.password);
+      setAlert({ type: "success", message: "Login successful!" });
+      router.push("/dashboard");
     } catch (error) {
       setAlert({
         type: "danger",
@@ -256,7 +242,7 @@ export default function Login() {
                         value={form.email}
                         onChange={handleChange}
                         isInvalid={!!errors.email}
-                        disabled={isLoading || isSubmitted}
+                        disabled={isLoading}
                       />
                       <Form.Control.Feedback type="invalid">
                         {errors.email}
@@ -274,7 +260,7 @@ export default function Login() {
                         value={form.password}
                         onChange={handleChange}
                         isInvalid={!!errors.password}
-                        disabled={isLoading || isSubmitted}
+                        disabled={isLoading}
                       />
                       <Form.Control.Feedback type="invalid">
                         {errors.password}
@@ -282,14 +268,14 @@ export default function Login() {
                     </InputGroup>
 
                     <ForgotPassword>
-                      <a href="/forgot-password">Forgot password?</a>
+                      <Link href="/forgot-password">Forgot password?</Link>
                     </ForgotPassword>
 
                     <LoginButton
                       type="submit"
                       variant="primary"
                       className="w-100"
-                      disabled={isLoading || isSubmitted}
+                      disabled={isLoading}
                     >
                       {isLoading ? "Signing in..." : "Sign in"}
                     </LoginButton>
@@ -302,21 +288,21 @@ export default function Login() {
                   <Button
                     variant="outline-secondary"
                     className="w-100 mb-3"
-                    disabled={isLoading || isSubmitted}
+                    disabled={isLoading}
                   >
                     Continue with Google
                   </Button>
 
                   <Footer>
-                    Don't have an account? <a href="/register">Sign up</a>
+                    Don't have an account? <Link href="/register">Sign up</Link>
                   </Footer>
                 </Card.Body>
               </LoginCard>
 
               <div className="text-center mt-4">
-                <a href="/" className="text-muted">
+                <Link href="/" className="text-muted">
                   ← Back to home
-                </a>
+                </Link>
               </div>
             </Col>
           </Row>

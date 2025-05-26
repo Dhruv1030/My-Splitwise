@@ -16,7 +16,7 @@ import ExpenseChart from "../src/components/analytics/ExpenseChart";
 
 const Dashboard = () => {
   const router = useRouter();
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser, loading: authLoading } = useContext(AuthContext);
   const {
     expenses,
     groups,
@@ -38,7 +38,14 @@ const Dashboard = () => {
     totalOwes: "0.00",
   });
 
-  // Update data when expenses change
+  // Protect the route: if auth is done loading and there's no user, redirect to login
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      router.push("/login");
+    }
+  }, [authLoading, currentUser, router]);
+
+  // Update dashboard data when expenses change
   useEffect(() => {
     if (!loading) {
       // Get recent expenses (sorted by date)
@@ -78,7 +85,8 @@ const Dashboard = () => {
     }).format(amount);
   };
 
-  if (loading) {
+  // Show loading indicator if either auth or expense data is still loading
+  if (loading || authLoading) {
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
         <div className="spinner-border text-primary" role="status">
@@ -98,7 +106,6 @@ const Dashboard = () => {
         <Row className="mb-4">
           <Col>
             <h1 className="mb-4">Dashboard</h1>
-
             <Row>
               <Col md={4}>
                 <Card className="mb-3">
@@ -116,7 +123,6 @@ const Dashboard = () => {
                   </Card.Body>
                 </Card>
               </Col>
-
               <Col md={4}>
                 <Card className="mb-3">
                   <Card.Body>
@@ -127,7 +133,6 @@ const Dashboard = () => {
                   </Card.Body>
                 </Card>
               </Col>
-
               <Col md={4}>
                 <Card className="mb-3">
                   <Card.Body>
@@ -171,7 +176,6 @@ const Dashboard = () => {
                   Add Expense
                 </Button>
               </Card.Header>
-
               <ListGroup variant="flush">
                 {recentExpenses.length > 0 ? (
                   recentExpenses.map((expense) => (
@@ -239,7 +243,6 @@ const Dashboard = () => {
                   </ListGroup.Item>
                 )}
               </ListGroup>
-
               {recentExpenses.length > 0 && (
                 <Card.Footer className="text-center">
                   <Button
@@ -252,7 +255,6 @@ const Dashboard = () => {
               )}
             </Card>
           </Col>
-
           <Col lg={4}>
             <Card className="mb-4">
               <Card.Header className="d-flex justify-content-between align-items-center">
@@ -266,7 +268,6 @@ const Dashboard = () => {
                   Settle Up
                 </Button>
               </Card.Header>
-
               <ListGroup variant="flush">
                 {balances.length > 0 ? (
                   balances.map((balance, index) => {
@@ -347,7 +348,6 @@ const Dashboard = () => {
                   New Group
                 </Button>
               </Card.Header>
-
               <ListGroup variant="flush">
                 {groups.length > 0 ? (
                   groups.slice(0, 3).map((group) => (
@@ -386,7 +386,6 @@ const Dashboard = () => {
                   </ListGroup.Item>
                 )}
               </ListGroup>
-
               {groups.length > 0 && (
                 <Card.Footer className="text-center">
                   <Button variant="link" onClick={() => router.push("/groups")}>

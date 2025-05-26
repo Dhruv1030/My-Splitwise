@@ -1,6 +1,19 @@
+// src/contexts/ExpenseContext.js
 import React, { createContext, useState, useEffect, useContext } from "react";
-import { v4 as uuidv4 } from "uuid";
 import { AuthContext } from "./AuthContext";
+import {
+  listenToExpenses,
+  listenToGroups,
+  listenToFriends,
+  addExpenseToDb,
+  updateExpenseInDb,
+  deleteExpenseFromDb,
+  addGroupToDb,
+  updateGroupInDb,
+  deleteGroupFromDb,
+  addFriendToDb,
+  deleteFriendFromDb,
+} from "../services/firebase";
 
 export const ExpenseContext = createContext();
 
@@ -12,175 +25,178 @@ export const ExpenseProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Initialize data when component mounts
+  // Subscribe to Firebase listeners for real-time data
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-
-        // In a real app, these would be API calls
-        // For now, we'll use localStorage or mock data
-
-        const storedExpenses = localStorage.getItem("expenses");
-        const storedGroups = localStorage.getItem("groups");
-        const storedFriends = localStorage.getItem("friends");
-
-        if (storedExpenses) {
-          setExpenses(JSON.parse(storedExpenses));
-        }
-
-        if (storedGroups) {
-          setGroups(JSON.parse(storedGroups));
-        }
-
-        if (storedFriends) {
-          // console.log("Loading friends from localStorage:", storedFriends);
-          setFriends(JSON.parse(storedFriends));
-        }
-
-        setLoading(false);
-      } catch (err) {
-        setError(err.message);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [currentUser]);
-
-  // Save data whenever it changes
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem("expenses", JSON.stringify(expenses));
-      localStorage.setItem("groups", JSON.stringify(groups));
-      localStorage.setItem("friends", JSON.stringify(friends));
-
-      // Verify the data was saved correctly
-      const savedFriends = localStorage.getItem("friends");
+    if (!currentUser) {
+      setLoading(false);
+      return;
     }
-  }, [expenses, groups, friends, loading]);
-
-  // Add a new expense
-  const addExpense = (expenseData) => {
-    const newExpense = {
-      id: uuidv4(),
-      ...expenseData,
-      timestamp: new Date().toISOString(),
-    };
-
-    setExpenses((prev) => [...prev, newExpense]);
-    return newExpense;
-  };
-
-  // Update an existing expense
-  const updateExpense = (id, expenseData) => {
-    setExpenses((prev) =>
-      prev.map((expense) =>
-        expense.id === id ? { ...expense, ...expenseData } : expense
-      )
-    );
-  };
-
-  // Delete an expense
-  const deleteExpense = (id) => {
-    setExpenses((prev) => prev.filter((expense) => expense.id !== id));
-  };
-
-  // Add a new group
-  const addGroup = (groupData) => {
-    const newGroup = {
-      id: uuidv4(),
-      ...groupData,
-      timestamp: new Date().toISOString(),
-    };
-
-    setGroups((prev) => [...prev, newGroup]);
-    return newGroup;
-  };
-
-  // Update an existing group
-  const updateGroup = (id, groupData) => {
-    setGroups((prev) =>
-      prev.map((group) =>
-        group.id === id ? { ...group, ...groupData } : group
-      )
-    );
-  };
-
-  // Delete a group
-  const deleteGroup = (id) => {
-    setGroups((prev) => prev.filter((group) => group.id !== id));
-  };
-
-  // Add a new friend
-  const addFriend = (friendData) => {
-    const newFriend = {
-      id: uuidv4(), // Make sure you're generating a unique ID
-      ...friendData,
-      timestamp: new Date().toISOString(),
-    };
-
-    setFriends((prev) => {
-      const updatedFriends = [...(prev || []), newFriend];
-
-      return updatedFriends;
+    const unsubscribeExpenses = listenToExpenses((expensesData) => {
+      setExpenses(expensesData);
+      setLoading(false);
+    });
+    const unsubscribeGroups = listenToGroups((groupsData) => {
+      setGroups(groupsData);
+    });
+    const unsubscribeFriends = listenToFriends((friendsData) => {
+      setFriends(friendsData);
     });
 
-    return newFriend;
-  };
-
-  // Delete a friend
-  const deleteFriend = (id) => {
-    setFriends((prev) => prev.filter((friend) => friend.id !== id));
-  };
-
-  // Record a payment (settlement)
-  const recordPayment = (paymentData) => {
-    // Create a payment expense
-    const newPayment = {
-      id: uuidv4(),
-      description: `Payment: ${
-        paymentData.from === currentUser.id
-          ? "You"
-          : getFriendById(paymentData.from).name
-      } paid ${
-        paymentData.to === currentUser.id
-          ? "you"
-          : getFriendById(paymentData.to).name
-      }`,
-      amount: parseFloat(paymentData.amount),
-      paidBy: paymentData.from,
-      splitType: "payment",
-      date: paymentData.date,
-      participants: [
-        { id: paymentData.from, amount: 0 },
-        { id: paymentData.to, amount: parseFloat(paymentData.amount) },
-      ],
-      notes: paymentData.notes,
-      isPayment: true,
-      timestamp: new Date().toISOString(),
+    // Cleanup subscriptions on unmount
+    return () => {
+      unsubscribeExpenses();
+      unsubscribeGroups();
+      unsubscribeFriends();
     };
+  }, [currentUser]);
 
-    setExpenses((prev) => [...prev, newPayment]);
-    return newPayment;
+  // Add a new expense using Firebase
+  const addExpense = async (expenseData) => {
+    try {
+      const newExpense = {
+        ...expenseData,
+        receiptUrl: expenseData.receiptUrl || null,
+        timestamp: new Date().toISOString(),
+      };
+      await addExpenseToDb(newExpense);
+      return newExpense;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
   };
 
-  // Get a friend by ID
+  // Update an existing expense using Firebase
+  const updateExpense = async (id, expenseData) => {
+    try {
+      await updateExpenseInDb(id, expenseData);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Delete an expense using Firebase
+  const deleteExpense = async (id) => {
+    try {
+      await deleteExpenseFromDb(id);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Add a new group using Firebase
+  const addGroup = async (groupData) => {
+    try {
+      const newGroup = {
+        ...groupData,
+        timestamp: new Date().toISOString(),
+      };
+      await addGroupToDb(newGroup);
+      return newGroup;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Update an existing group using Firebase
+  const updateGroup = async (id, groupData) => {
+    try {
+      await updateGroupInDb(id, groupData);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Delete a group using Firebase
+  const deleteGroup = async (id) => {
+    try {
+      await deleteGroupFromDb(id);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Add a new friend using Firebase
+  const addFriend = async (friendData) => {
+    try {
+      const newFriend = {
+        ...friendData,
+        timestamp: new Date().toISOString(),
+      };
+      await addFriendToDb(newFriend);
+      return newFriend;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Delete a friend using Firebase
+  const deleteFriend = async (id) => {
+    try {
+      await deleteFriendFromDb(id);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Record a payment (settlement) using Firebase.
+  // This creates a payment expense; you can later distinguish it via the "isPayment" flag.
+  const recordPayment = async (paymentData) => {
+    try {
+      const newPayment = {
+        description: `Payment: ${
+          paymentData.from === currentUser.id
+            ? "You"
+            : getFriendById(paymentData.from)?.name || "Unknown"
+        } paid ${
+          paymentData.to === currentUser.id
+            ? "you"
+            : getFriendById(paymentData.to)?.name || "Unknown"
+        }`,
+        amount: parseFloat(paymentData.amount),
+        paidBy: paymentData.from,
+        splitType: "payment",
+        date: paymentData.date,
+        participants: [
+          { id: paymentData.from, amount: 0 },
+          { id: paymentData.to, amount: parseFloat(paymentData.amount) },
+        ],
+        notes: paymentData.notes,
+        isPayment: true,
+        timestamp: new Date().toISOString(),
+      };
+
+      await addExpenseToDb(newPayment);
+      return newPayment;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Get a friend by ID from local state
   const getFriendById = (id) => {
     return friends.find((friend) => friend.id === id) || null;
   };
 
-  // Get a group by ID
+  // Get a group by ID from local state
   const getGroupById = (id) => {
     return groups.find((group) => group.id === id) || null;
   };
 
-  // Get expenses for a specific group
+  // Get expenses for a specific group from local state
   const getExpensesByGroup = (groupId) => {
     return expenses.filter((expense) => expense.groupId === groupId);
   };
 
-  // Get expenses involving a specific friend
+  // Get expenses involving a specific friend from local state
   const getExpensesByFriend = (friendId) => {
     return expenses.filter(
       (expense) =>
@@ -189,9 +205,7 @@ export const ExpenseProvider = ({ children }) => {
     );
   };
 
-  // Calculate balances between users
-  // console.log("Full expenses data:", expenses);
-  // Calculate balances between users
+  // Calculate balances between users based on local state expenses
   const calculateBalances = () => {
     console.log("Starting balance calculation with:", {
       expenses: expenses.length,
@@ -218,19 +232,17 @@ export const ExpenseProvider = ({ children }) => {
 
     console.log("Initialized balances:", balances);
 
-    // Calculate from expenses
+    // Calculate balances from expenses
     expenses.forEach((expense, index) => {
       console.log(
         `Expense ${index}: ${expense.description}, Paid by: ${expense.paidBy}`
       );
 
-      // Skip if missing critical data
       if (!expense.paidBy || !expense.participants || !expense.amount) {
         console.log("Skipping expense - missing critical data");
         return;
       }
 
-      // Skip self-expenses (expenses with only the payer as participant)
       if (
         expense.participants.length === 1 &&
         expense.participants[0].id === expense.paidBy
@@ -239,7 +251,6 @@ export const ExpenseProvider = ({ children }) => {
         return;
       }
 
-      // For expenses with 0 participant amounts, calculate equal split
       const hasValidAmounts = expense.participants.some((p) => p.amount > 0);
       if (!hasValidAmounts && expense.participants.length > 1) {
         console.log("No valid participant amounts - calculating equal split");
@@ -247,23 +258,16 @@ export const ExpenseProvider = ({ children }) => {
           parseFloat(expense.amount) / expense.participants.length;
 
         expense.participants.forEach((participant) => {
-          // Skip if participant is the payer
           if (participant.id === expense.paidBy) return;
-
-          // Skip if IDs are missing from balances
           if (
             !balances[participant.id] ||
-            !balances[participant.id][expense.paidBy] ||
-            !balances[expense.paidBy] ||
-            !balances[expense.paidBy][participant.id]
+            !balances[participant.id][expense.paidBy]
           ) {
             console.log(
               `Skipping participant ${participant.id} - missing from balances`
             );
             return;
           }
-
-          // This person owes the payer
           console.log(
             `${participant.id} owes ${expense.paidBy} ${shareAmount}`
           );
@@ -271,28 +275,19 @@ export const ExpenseProvider = ({ children }) => {
           balances[expense.paidBy][participant.id] -= shareAmount;
         });
       } else {
-        // Regular expense with valid participant amounts
         expense.participants.forEach((participant) => {
-          // Skip if participant is the payer
           if (participant.id === expense.paidBy) return;
-
-          // Skip if IDs are missing from balances
           if (
             !balances[participant.id] ||
-            !balances[participant.id][expense.paidBy] ||
-            !balances[expense.paidBy] ||
-            !balances[expense.paidBy][participant.id]
+            !balances[participant.id][expense.paidBy]
           ) {
             console.log(
               `Skipping participant ${participant.id} - missing from balances`
             );
             return;
           }
-
-          // This person owes the payer
           const owed = parseFloat(participant.amount || 0);
-          if (owed <= 0) return; // Skip if amount is 0 or negative
-
+          if (owed <= 0) return;
           console.log(`${participant.id} owes ${expense.paidBy} ${owed}`);
           balances[participant.id][expense.paidBy] += owed;
           balances[expense.paidBy][participant.id] -= owed;
@@ -300,19 +295,16 @@ export const ExpenseProvider = ({ children }) => {
       }
     });
 
-    // Simplify balances (net amounts)
+    // Simplify net balances
     const simplifiedBalances = [];
-
     Object.keys(balances).forEach((userId) => {
       Object.keys(balances[userId]).forEach((otherId) => {
         if (userId < otherId) {
           const netAmount =
             balances[userId][otherId] + balances[otherId][userId];
-
           if (Math.abs(netAmount) > 0.01) {
             const fromUser = netAmount > 0 ? userId : otherId;
             const toUser = netAmount > 0 ? otherId : userId;
-
             simplifiedBalances.push({
               from: fromUser,
               to: toUser,
@@ -327,35 +319,28 @@ export const ExpenseProvider = ({ children }) => {
     return simplifiedBalances;
   };
 
-  // Get total owed to user
   const getTotalOwedToUser = () => {
     let total = 0;
     const balances = calculateBalances();
-
     balances.forEach((balance) => {
       if (balance.to === currentUser?.id) {
         total += parseFloat(balance.amount);
       }
     });
-
     return total.toFixed(2);
   };
 
-  // Get total user owes
   const getTotalUserOwes = () => {
     let total = 0;
     const balances = calculateBalances();
-
     balances.forEach((balance) => {
       if (balance.from === currentUser?.id) {
         total += parseFloat(balance.amount);
       }
     });
-
     return total.toFixed(2);
   };
 
-  // Get net balance
   const getNetBalance = () => {
     const owed = parseFloat(getTotalOwedToUser());
     const owes = parseFloat(getTotalUserOwes());
