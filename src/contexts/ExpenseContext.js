@@ -1,6 +1,7 @@
 // src/contexts/ExpenseContext.js
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { AuthContext } from "./AuthContext";
+import { useAuth } from "./AuthContext";
 import {
   listenToExpenses,
   listenToGroups,
@@ -15,10 +16,18 @@ import {
   deleteFriendFromDb,
 } from "../services/firebase";
 
-export const ExpenseContext = createContext();
+export const ExpenseContext = createContext(null);
+
+export const useExpenses = () => {
+  const context = useContext(ExpenseContext);
+  if (!context) {
+    throw new Error("useExpenses must be used within an ExpenseProvider");
+  }
+  return context;
+};
 
 export const ExpenseProvider = ({ children }) => {
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser } = useAuth();
   const [expenses, setExpenses] = useState([]);
   const [groups, setGroups] = useState([]);
   const [friends, setFriends] = useState([]);
@@ -347,35 +356,33 @@ export const ExpenseProvider = ({ children }) => {
     return (owed - owes).toFixed(2);
   };
 
+  const value = {
+    expenses,
+    groups,
+    friends,
+    loading,
+    error,
+    addExpense,
+    updateExpense,
+    deleteExpense,
+    addGroup,
+    updateGroup,
+    deleteGroup,
+    addFriend,
+    deleteFriend,
+    recordPayment,
+    getFriendById,
+    getGroupById,
+    getExpensesByGroup,
+    getExpensesByFriend,
+    calculateBalances,
+    getTotalOwedToUser,
+    getTotalUserOwes,
+    getNetBalance,
+  };
+
   return (
-    <ExpenseContext.Provider
-      value={{
-        expenses,
-        groups,
-        friends,
-        loading,
-        error,
-        addExpense,
-        updateExpense,
-        deleteExpense,
-        addGroup,
-        updateGroup,
-        deleteGroup,
-        addFriend,
-        deleteFriend,
-        recordPayment,
-        getFriendById,
-        getGroupById,
-        getExpensesByGroup,
-        getExpensesByFriend,
-        calculateBalances,
-        getTotalOwedToUser,
-        getTotalUserOwes,
-        getNetBalance,
-      }}
-    >
-      {children}
-    </ExpenseContext.Provider>
+    <ExpenseContext.Provider value={value}>{children}</ExpenseContext.Provider>
   );
 };
 

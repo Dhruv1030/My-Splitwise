@@ -2,9 +2,10 @@ import React, { useContext } from "react";
 import { useRouter } from "next/router";
 import Navigation from "./Navigation";
 import { AuthContext } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 const Layout = ({ children }) => {
-  const { currentUser, loading } = useContext(AuthContext);
+  const { currentUser, loading } = useAuth();
   const router = useRouter();
 
   // List of public routes that don't need authentication

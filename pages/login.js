@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -13,121 +13,113 @@ import {
 } from "react-bootstrap";
 import styled from "styled-components";
 import { BiDollar, BiEnvelope, BiLock } from "react-icons/bi";
-import AuthContext from "../src/contexts/AuthContext";
+import { useAuth } from "../src/contexts/AuthContext";
 
 const LoginContainer = styled.div`
   min-height: 100vh;
   display: flex;
   align-items: center;
-  background-color: #f6f8fa;
+  background-color: #f8f9fa;
   padding: 2rem 0;
 `;
 
 const LoginCard = styled(Card)`
-  border: none;
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
 `;
 
-const CardHeader = styled(Card.Header)`
-  background-color: white;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e9ebed;
+const CardHeader = styled.div`
+  background-color: #fff;
+  padding: 2rem;
   text-align: center;
+  border-bottom: 1px solid #eee;
 `;
 
 const Logo = styled.div`
-  font-size: 2rem;
+  color: #1cc29f;
+  font-size: 24px;
   font-weight: bold;
-  color: #16b174;
+  margin-bottom: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1rem;
-
-  svg {
-    margin-right: 0.5rem;
-  }
+  gap: 8px;
 `;
 
-const InputGroup = styled.div`
+const InputGroup = styled(Form.Group)`
   position: relative;
   margin-bottom: 1.5rem;
 
-  .form-control {
-    padding-left: 3rem;
-    height: 48px;
-    background-color: #f9fafb;
-    border: 1px solid #e9ebed;
-    border-radius: 8px;
-
-    &:focus {
-      box-shadow: 0 0 0 0.25rem rgba(22, 177, 116, 0.25);
-      border-color: #16b174;
-    }
-  }
-
   .icon {
     position: absolute;
-    left: 1rem;
+    left: 15px;
     top: 50%;
     transform: translateY(-50%);
-    color: #6e7a88;
+    color: #6c757d;
+    z-index: 2;
+  }
+
+  .form-control {
+    padding-left: 45px;
   }
 `;
 
 const LoginButton = styled(Button)`
-  height: 48px;
+  padding: 0.75rem;
   font-weight: 500;
-  font-size: 1rem;
 `;
 
 const ForgotPassword = styled.div`
   text-align: right;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 
   a {
-    color: #16b174;
+    color: #6c757d;
     text-decoration: none;
-    font-size: 0.875rem;
-
     &:hover {
-      text-decoration: underline;
+      color: #1cc29f;
     }
   }
 `;
 
 const Divider = styled.div`
-  display: flex;
-  align-items: center;
+  text-align: center;
   margin: 1.5rem 0;
+  position: relative;
 
   &::before,
   &::after {
     content: "";
-    flex: 1;
-    border-bottom: 1px solid #e9ebed;
+    position: absolute;
+    top: 50%;
+    width: 45%;
+    height: 1px;
+    background-color: #dee2e6;
+  }
+
+  &::before {
+    left: 0;
+  }
+
+  &::after {
+    right: 0;
   }
 
   span {
+    background-color: #fff;
     padding: 0 1rem;
-    color: #6e7a88;
-    font-size: 0.875rem;
+    color: #6c757d;
   }
 `;
 
 const Footer = styled.div`
   text-align: center;
   margin-top: 1.5rem;
-  font-size: 0.875rem;
-  color: #6e7a88;
+  color: #6c757d;
 
   a {
-    color: #16b174;
+    color: #1cc29f;
     text-decoration: none;
-    font-weight: 500;
-
     &:hover {
       text-decoration: underline;
     }
@@ -144,33 +136,38 @@ export default function Login() {
   const [alert, setAlert] = useState({ type: "", message: "" });
 
   const router = useRouter();
-  const { login } = useContext(AuthContext); // Use Firebase login from AuthContext
+  const { login, signInWithGoogle } = useAuth(); // Get auth methods from useAuth hook
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm({
-      ...form,
+    setForm((prev) => ({
+      ...prev,
       [name]: value,
-    });
+    }));
+    // Clear error when user starts typing
     if (errors[name]) {
-      setErrors({
-        ...errors,
+      setErrors((prev) => ({
+        ...prev,
         [name]: "",
-      });
+      }));
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
 
-    if (!form.email) {
+    // Email validation
+    if (!form.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(form.email)) {
       newErrors.email = "Email is invalid";
     }
 
+    // Password validation
     if (!form.password) {
       newErrors.password = "Password is required";
+    } else if (form.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
     }
 
     setErrors(newErrors);
@@ -186,17 +183,50 @@ export default function Login() {
     setAlert({ type: "", message: "" });
 
     try {
-      // Use the Firebase login function from AuthContext
       await login(form.email, form.password);
-      setAlert({ type: "success", message: "Login successful!" });
       router.push("/dashboard");
     } catch (error) {
+      console.error("Login error:", error);
       setAlert({
         type: "danger",
-        message: error.message || "Failed to login. Please try again.",
+        message:
+          getErrorMessage(error.code) || "Failed to login. Please try again.",
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      setAlert({ type: "", message: "" });
+      await signInWithGoogle();
+      router.push("/dashboard");
+    } catch (error) {
+      console.error("Google sign in error:", error);
+      setAlert({
+        type: "danger",
+        message: "Failed to sign in with Google. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper function to get user-friendly error messages
+  const getErrorMessage = (errorCode) => {
+    switch (errorCode) {
+      case "auth/user-not-found":
+        return "No account exists with this email";
+      case "auth/wrong-password":
+        return "Invalid password";
+      case "auth/too-many-requests":
+        return "Too many failed attempts. Please try again later";
+      case "auth/invalid-email":
+        return "Invalid email format";
+      default:
+        return "An error occurred during login";
     }
   };
 
@@ -225,7 +255,12 @@ export default function Login() {
 
                 <Card.Body className="p-4">
                   {alert.message && (
-                    <Alert variant={alert.type} className="mb-4">
+                    <Alert
+                      variant={alert.type}
+                      className="mb-4"
+                      dismissible
+                      onClose={() => setAlert({ type: "", message: "" })}
+                    >
                       {alert.message}
                     </Alert>
                   )}
@@ -288,6 +323,7 @@ export default function Login() {
                   <Button
                     variant="outline-secondary"
                     className="w-100 mb-3"
+                    onClick={handleGoogleSignIn}
                     disabled={isLoading}
                   >
                     Continue with Google

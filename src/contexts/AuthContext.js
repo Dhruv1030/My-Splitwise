@@ -1,14 +1,15 @@
-import { createContext, useState, useEffect, useContext } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import {
+  getAuth,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signOut,
-  sendPasswordResetEmail,
   onAuthStateChanged,
+  signInWithPopup,
+  GoogleAuthProvider,
 } from "firebase/auth";
-import { auth, createUserProfile } from "../services/firebase";
+import { auth } from "../services/firebase";
 
-export const AuthContext = createContext();
+const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -18,34 +19,14 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Sign up function
-  const signup = async (email, password, userData) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      await createUserProfile(userCredential.user.uid, {
-        email,
-        ...userData,
-        createdAt: new Date().toISOString(),
-      });
-      return userCredential.user;
-    } catch (error) {
-      setError(getAuthErrorMessage(error.code));
-      throw error;
-    }
-  };
-
-  // Sign in function
   const login = async (email, password) => {
     try {
+      setError(null);
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
@@ -53,36 +34,33 @@ export const AuthProvider = ({ children }) => {
       );
       return userCredential.user;
     } catch (error) {
-      setError(getAuthErrorMessage(error.code));
+      setError(error.message);
       throw error;
     }
   };
 
-  // Logout function
+  const signInWithGoogle = async () => {
+    try {
+      setError(null);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      return result.user;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
+      setError(null);
       await signOut(auth);
-      setCurrentUser(null);
     } catch (error) {
-      setError(getAuthErrorMessage(error.code));
+      setError(error.message);
       throw error;
     }
   };
 
-  // Password reset function
-  const resetPassword = async (email) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (error) {
-      setError(getAuthErrorMessage(error.code));
-      throw error;
-    }
-  };
-
-  // Clear error helper
-  const clearError = () => setError(null);
-
-  // Auth state observer
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(
       auth,
@@ -92,7 +70,7 @@ export const AuthProvider = ({ children }) => {
         setError(null);
       },
       (error) => {
-        setError(getAuthErrorMessage(error.code));
+        setError(error.message);
         setLoading(false);
       }
     );
@@ -104,32 +82,16 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     loading,
     error,
-    signup,
     login,
     logout,
-    resetPassword,
-    clearError,
+    signInWithGoogle,
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {!loading ? children : <div>Loading...</div>}
     </AuthContext.Provider>
   );
-};
+}
 
-// Helper function for error messages
-const getAuthErrorMessage = (code) => {
-  const messages = {
-    "auth/user-not-found": "No account exists with this email",
-    "auth/wrong-password": "Invalid password",
-    "auth/email-already-in-use": "Email already registered",
-    "auth/weak-password": "Password should be at least 6 characters",
-    "auth/invalid-email": "Invalid email format",
-    "auth/network-request-failed":
-      "Network error - please check your connection",
-    "auth/too-many-requests": "Too many attempts - please try again later",
-    "auth/operation-not-allowed": "Email/password sign-in is not enabled",
-  };
-  return messages[code] || "An unexpected error occurred";
-};
+export { AuthContext };
