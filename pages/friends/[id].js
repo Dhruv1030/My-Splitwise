@@ -7,6 +7,7 @@ import FriendDetail from "../../src/components/friends/FriendDetail";
 const FriendDetailPage = () => {
   const router = useRouter();
   const { id } = router.query;
+  if (!id) return <p>Loading friend…</p>;
 
   return (
     <>

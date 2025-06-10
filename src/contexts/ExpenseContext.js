@@ -36,22 +36,31 @@ export const ExpenseProvider = ({ children }) => {
 
   // Subscribe to Firebase listeners for real-time data
   useEffect(() => {
+    console.log("💡 useEffect in ExpenseContext running");
+    console.log("👤 currentUser:", currentUser);
+
     if (!currentUser) {
+      console.warn("🚫 No currentUser — skipping Firebase listeners");
       setLoading(false);
       return;
     }
+
+    console.log("✅ Subscribing to Firebase listeners...");
+
     const unsubscribeExpenses = listenToExpenses((expensesData) => {
+      console.log("🔥 listenToExpenses triggered:", expensesData);
       setExpenses(expensesData);
       setLoading(false);
     });
+
     const unsubscribeGroups = listenToGroups((groupsData) => {
       setGroups(groupsData);
     });
+
     const unsubscribeFriends = listenToFriends((friendsData) => {
       setFriends(friendsData);
     });
 
-    // Cleanup subscriptions on unmount
     return () => {
       unsubscribeExpenses();
       unsubscribeGroups();

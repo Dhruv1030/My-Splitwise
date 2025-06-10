@@ -1,5 +1,7 @@
 // src/services/firebase.js
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
+import { get } from "firebase/database";
+
 import {
   getDatabase,
   ref,
@@ -31,7 +33,13 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApps()[0];
+}
+
 const db = getDatabase(app);
 const auth = getAuth(app);
 
@@ -150,14 +158,27 @@ export const deleteExpenseFromDb = (expenseId) => {
 
 export const listenToExpenses = (callback) => {
   const expensesRef = ref(db, "expenses");
+
   return onValue(expensesRef, (snapshot) => {
+    console.log("📡 Firebase subscription triggered");
+
     const data = snapshot.val();
+    console.log("🔥 Raw snapshot data:", data);
+
     const expenses = data
-      ? Object.keys(data).map((key) => ({
-          id: key,
-          ...data[key],
-        }))
+      ? Object.keys(data).map((key) => {
+          const expense = data[key];
+          return {
+            id: key,
+            ...expense,
+            participants: Array.isArray(expense.participants)
+              ? expense.participants
+              : Object.values(expense.participants || {}),
+          };
+        })
       : [];
+
+    console.log("✅ Parsed expenses array:", expenses);
     callback(expenses);
   });
 };

@@ -1,15 +1,11 @@
 import React, { useContext, useEffect } from "react";
 import { Card, ListGroup, Button } from "react-bootstrap";
 import { useRouter } from "next/router";
-import { ExpenseContext } from "../../contexts/ExpenseContext";
+import { useExpenses } from "../../contexts/ExpenseContext";
 
 const FriendList = () => {
   const router = useRouter();
-  const contextValue = useContext(ExpenseContext);
-  const { friends, deleteFriend } = contextValue || {};
-
-  // Debugging
-  useEffect(() => {}, [contextValue, friends]);
+  const { friends, deleteFriend } = useExpenses();
 
   return (
     <Card className="shadow-sm">

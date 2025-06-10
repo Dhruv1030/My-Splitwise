@@ -1,11 +1,11 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import { Form, Button, Card, Alert } from "react-bootstrap";
 import { useRouter } from "next/router";
-import { ExpenseContext } from "../../contexts/ExpenseContext";
+import { useExpenses } from "../../contexts/ExpenseContext";
 
 const AddFriendForm = () => {
   const router = useRouter();
-  const { addFriend, friends } = useContext(ExpenseContext);
+  const { addFriend, friends, deleteFriend } = useExpenses();
 
   const [friendData, setFriendData] = useState({
     name: "",
@@ -60,16 +60,16 @@ const AddFriendForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitted(true);
 
-    if (validateForm()) {
-      // Add the friend
-      addFriend(friendData);
-
-      // Navigate back to friends list
+    if (!validateForm()) return;
+    try {
+      await addFriend(friendData);
       router.push("/friends");
+    } catch (err) {
+      setErrors({ form: err.message });
     }
   };
 

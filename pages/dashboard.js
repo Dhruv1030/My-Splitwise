@@ -13,6 +13,7 @@ import {
 import { AuthContext } from "../src/contexts/AuthContext";
 import { ExpenseContext } from "../src/contexts/ExpenseContext";
 import ExpenseChart from "../src/components/analytics/ExpenseChart";
+import ActivityFeed from "../src/components/dashboard/ActivityFeed";
 
 const Dashboard = () => {
   const router = useRouter();
@@ -78,6 +79,10 @@ const Dashboard = () => {
     getTotalUserOwes,
   ]);
 
+  console.log("currentUser:", currentUser);
+  console.log("authLoading:", authLoading);
+  console.log("expenses loading:", loading);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -86,26 +91,45 @@ const Dashboard = () => {
   };
 
   // Show loading indicator if either auth or expense data is still loading
-  if (loading || authLoading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-  }
+  // if (loading || authLoading) {
+  //   return (
+  //     <div className="d-flex justify-content-center align-items-center vh-100">
+  //       <div className="spinner-border text-primary" role="status">
+  //         <span className="visually-hidden">Loading...</span>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <>
       <Head>
         <title>Dashboard | Splitwise Clone</title>
+        <Button
+          variant="outline-success"
+          className="mb-3"
+          onClick={async () => {
+            const { addExpense } = useContext(ExpenseContext);
+            await addExpense({
+              description: "🧪 Test expense via button",
+              amount: 42,
+              paidBy: currentUser?.id,
+              participants: [{ id: currentUser?.id, amount: 42 }],
+              groupId: "group1",
+              date: new Date().toISOString(),
+            });
+            console.log("✅ Test expense added");
+          }}
+        >
+          Add Test Expense
+        </Button>
       </Head>
 
       <Container className="py-4">
         <Row className="mb-4">
           <Col>
             <h1 className="mb-4">Dashboard</h1>
+
             <Row>
               <Col md={4}>
                 <Card className="mb-3">
@@ -394,6 +418,12 @@ const Dashboard = () => {
                 </Card.Footer>
               )}
             </Card>
+          </Col>
+        </Row>
+        <Row>
+          <Col>
+            <h5 className="mt-5 mb-3 text-muted">Full Activity Feed</h5>
+            <ActivityFeed />
           </Col>
         </Row>
       </Container>

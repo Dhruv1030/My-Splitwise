@@ -1,38 +1,12 @@
-// import React from "react";
-// import Head from "next/head";
-// import { Container, Row, Col } from "react-bootstrap";
-// import AddFriendForm from "../../src/components/friends/AddFriendForm";
-
-// const AddFriendPage = () => {
-//   return (
-//     <>
-//       <Head>
-//         <title>Add Friend | Splitwise Clone</title>
-//       </Head>
-
-//       <Container className="py-4">
-//         <Row>
-//           <Col lg={8} className="mx-auto">
-//             <h1 className="mb-4">Add a Friend</h1>
-//             <AddFriendForm />
-//           </Col>
-//         </Row>
-//       </Container>
-//     </>
-//   );
-// };
-
-// export default AddFriendPage;
-
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import Head from "next/head";
 import { Container, Row, Col, Card, Form, Button } from "react-bootstrap";
 import { useRouter } from "next/router";
-import { ExpenseContext } from "../../src/contexts/ExpenseContext";
+import { useExpenses } from "../../src/contexts/ExpenseContext";
 
 const AddFriendPage = () => {
   const router = useRouter();
-  const { addFriend } = useContext(ExpenseContext) || {};
+  const { addFriend } = useExpenses();
 
   const [friendData, setFriendData] = useState({
     name: "",
@@ -48,14 +22,14 @@ const AddFriendPage = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (typeof addFriend === "function") {
-      addFriend(friendData);
-      router.push("/friends");
-    } else {
-      alert("addFriend function is not available");
+    try {
+      await addFriend(friendData); // ← wait for Firebase write
+      router.push("/friends"); // ← then navigate
+    } catch (err) {
+      alert("Failed to add friend: " + err.message);
     }
   };
 

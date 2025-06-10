@@ -87,7 +87,7 @@ const ActivityAmount = styled.span`
 const EmptyState = styled.div`
   text-align: center;
   padding: 2rem 0;
-  color: ${(props) => props.theme.colors.textLight};
+  color: #6c757d; // instead of props.theme.colors.textLight
 
   svg {
     margin-bottom: 1rem;
@@ -120,7 +120,8 @@ const ActivityFeed = () => {
       return {
         id: expense.id,
         type: activityType,
-        date: expense.created_at,
+        date:
+          expense.created_at || expense.timestamp || new Date().toISOString(),
         expense,
         group,
         isPayer,
@@ -154,6 +155,10 @@ const ActivityFeed = () => {
       minute: "2-digit",
     });
   };
+
+  if (!expenses || !groups || !currentUser) {
+    return <p>Loading activity feed...</p>;
+  }
 
   const getActivityContent = (activity) => {
     switch (activity.type) {
